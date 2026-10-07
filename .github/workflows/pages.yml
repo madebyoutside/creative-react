@@ -8,8 +8,6 @@ on:
 permissions:
   contents: write
 
-# Two branches deploying at once would both read gh-pages, and the second push
-# would drop the first one's directory. Never cancel: let them queue.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -28,16 +26,18 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      # A branch called wip/flow-field has to land in wip-flow-field, or it
-      # creates a nested directory Pages will not serve.
-      - name: Name the directory after the branch
+      - name: Place the site
         id: dir
-        run: echo "name=${GITHUB_REF_NAME//\//-}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "dest=" >> "$GITHUB_OUTPUT"
+          else
+            echo "dest=${GITHUB_REF_NAME//\//-}" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
-          destination_dir: ${{ steps.dir.outputs.name }}
-          # Without this every deploy wipes the other branches' directories.
+          destination_dir: ${{ steps.dir.outputs.dest }}
           keep_files: true
